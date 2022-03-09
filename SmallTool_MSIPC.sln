@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32002.222
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmallTool_MSIPC", "SmallTool_MSIPC.csproj", "{874B6105-DA6B-4637-8669-E3F90BE2DDCE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{874B6105-DA6B-4637-8669-E3F90BE2DDCE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{874B6105-DA6B-4637-8669-E3F90BE2DDCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{874B6105-DA6B-4637-8669-E3F90BE2DDCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{874B6105-DA6B-4637-8669-E3F90BE2DDCE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4BC29B62-A01E-451B-8472-B97037FA4D1F}
+	EndGlobalSection
+EndGlobal
