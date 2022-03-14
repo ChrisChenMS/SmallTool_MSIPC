@@ -16,7 +16,7 @@ namespace SmallTool_MSIPC
         private readonly string ProgramLocation = System.AppDomain.CurrentDomain.BaseDirectory;
         private readonly static Handler Handler = new Handler();
         private string BaseLocation;
-        private string errorRecorder;
+        private bool AIPInstalledFlag = false;
         private MSIPC_Rules Rule = new MSIPC_Rules();
         private MSIPC_BasicLogInfo BasicInfo = new MSIPC_BasicLogInfo();
 
@@ -91,19 +91,21 @@ namespace SmallTool_MSIPC
                 {
                     foreach (string LogPath in MSIPCLogs)
                     {
+
                         Handler.TxtLogger(LogPath.Split('\\')[^1]);
 
                         //open file
                         string[] RawContent = File.ReadAllLines(LogPath).ToArray();
+                        string LogFileName = LogPath.Split('\\')[^1];
 
                         //initially parse log
                         List<string[]> ParsedContent = ParseMSIPCLog(RawContent);
 
-                        LogBasicAnalyse(ParsedContent, ResponseCode, LogPath.Split('\\')[^1]);
+                        LogBasicAnalyse(ParsedContent, ResponseCode, LogFileName);
 
                         if (Rule.Bootstrap)
                         {
-                            BootstrapAnalyse(ParsedContent);
+                            BootstrapAnalyse(ParsedContent, LogFileName);
                         }
                         if (Rule.RAC_CLC)
                         {
@@ -118,6 +120,17 @@ namespace SmallTool_MSIPC
 
                         }
                         
+                    }
+
+                    //conclusion display part
+
+                    //bootstrap info
+                    if (Rule.Bootstrap)
+                    {
+                        if (AIPInstalledFlag)
+                        {
+                            Console.WriteLine("\nAIP client is installed");
+                        }
                     }
                 }
             }
@@ -243,8 +256,6 @@ namespace SmallTool_MSIPC
             if (FindStartWithInParsedLog(content, "* AppName")) { BasicInfo.AppName = content.Find(x => x[1].StartsWith("* AppName"))[1].Split(':')[1].Trim(); }
             if (FindStartWithInParsedLog(content, "* AppVersion")) { BasicInfo.AppVersion = content.Find(x => x[1].StartsWith("* AppVersion"))[1].Split(':')[1].Trim(); }
             if (FindStartWithInParsedLog(content, "        -->dwType")) { BasicInfo.AuthType = content.Find(x => x[1].StartsWith("        -->dwType"))[1].Split(':')[1].Trim(); }
-            var a = content.Find(x => x[1].StartsWith("    -->wszID"));
-
             if (FindStartWithInParsedLog(content, "    -->wszID")) { BasicInfo.Identity = content.Find(x => x[1].StartsWith("    -->wszID"))[1].Split(':')[1].Trim(); }
             
             //find all request, response and correlation ID lines
@@ -260,10 +271,6 @@ namespace SmallTool_MSIPC
                 var TempSession = Session;
                 foreach (string[] Line in TempSession.ToList())
                 {
-                    //var ab = !CodeList.Any(x => Line[1].Contains(x));
-                    //var b = Line[1].StartsWith("------ Sending");
-                    //var c = Line[1].StartsWith("Correlation");
-
                     //if (!CodeList.Any(x => Line[1].Contains(x)) && Line[1].StartsWith("------ Sending"))
                     if (!CodeList.Any(x => Line[1].Contains(x)) && Handler.IsFiltered(Line[1],"MSIPC_Response"))
                     {
@@ -291,7 +298,7 @@ namespace SmallTool_MSIPC
 
             if (GroupedRequestsAndResponses.Count != 0)
             {
-                Console.WriteLine("\n==========MSIPC Log: " + FileName + "==========");
+                Console.WriteLine("\n==========MSIPC Traces: " + FileName + "==========");
                 //display basic info
                 Console.WriteLine(Handler.Serialize(BasicInfo) + "\n");
 
@@ -329,18 +336,110 @@ namespace SmallTool_MSIPC
                     Console.WriteLine("");
                 }
 
-                Console.WriteLine("==========MSIPC Log Info Ends==========\n");
+                Console.WriteLine("==========MSIPC Traces Ends==========\n");
             }
             else 
             {
-                Console.WriteLine("\nNo info to display based on rule in log " + FileName);
+                Console.WriteLine("\nNo trace to display based on rule in log " + FileName);
             }
         }
 
-        private void BootstrapAnalyse(List<string[]> content)
+        private void BootstrapAnalyse(List<string[]> content,string FileName)
         {
             //check if the log is AIP client log
-            IsAIPLog(content);
+            if (IsAIPLog(content) )
+            {
+                AIPInstalledFlag = true;
+            }
+            List<string[]> GroupedInformation = GroupInformation(content);
+            if (GroupedInformation.Count > 0)
+            {
+                int MachineActivationCount = 0;
+                bool MachineActivationFlag = false;
+                int ServiceDiscoveryCount = 0;
+                int ServiceDiscoverySuccessCount = 0;
+                bool ServiceDiscoveryFlag = false;
+                int UserIdentityCount = 0;
+                bool UserIdentityFlag = false;
+                int TemplateCount = 0;
+                bool TemplateFlag = false;
+                foreach (string[] Information in GroupedInformation)
+                {
+                    Handler.TxtLogger("line:" + Information[0] + ": " + Information[1]);
+                    Console.WriteLine("line:" + Information[0] + ": " + Information[1]);
+                    if (Handler.IsFiltered(Information[1], "MSIPC_MachineAvtivationFlag"))
+                    {
+                        MachineActivationCount++;
+                    }
+                    else if (Handler.IsFiltered(Information[1], "MSIPC_ServiceDiscoveryFlag"))
+                    {
+                        ServiceDiscoveryCount++;
+                        if (Information[1].Contains("succe"))
+                        {
+                            ServiceDiscoveryFlag = true;
+                        }
+                    }
+                    else if (Handler.IsFiltered(Information[1], "MSIPC_UserIdentityFlag"))
+                    {
+                        UserIdentityFlag = true;
+                    }
+                    else if (Handler.IsFiltered(Information[1], "MSIPC_TemplateFlag"))
+                    {
+                        TemplateCount++;
+                        TemplateFlag = true;
+                    }
+                }
+
+                //machine cert checking
+                if (MachineActivationCount > 1)
+                {
+                    Console.WriteLine("Machine activation ok");
+                }
+                else if (MachineActivationCount == 1)
+                {
+                    Console.WriteLine("Machine activation may fail");
+                }
+                else
+                {
+                    Console.WriteLine("Machine activation may skip");
+                }
+
+                //service discovery checking. May need add AIP/not logic later
+                if (ServiceDiscoveryFlag)
+                {
+                    Console.WriteLine("Service discovery ok");
+                }
+                else if (ServiceDiscoveryCount == 0)
+                {
+                    Console.WriteLine("Service discovery may skip or terminate");
+                }
+                else
+                {
+                    Console.WriteLine("Service discovery may fail");
+                }
+
+                //user identity
+                if (UserIdentityFlag)
+                {
+                    Console.WriteLine("User identity initialization ok");
+                }
+                else
+                {
+                    Console.WriteLine("User identity initialization may fail");
+                }
+
+                //template
+                if (TemplateFlag)
+                {
+                    Console.WriteLine("Template getting ok");
+                }
+                else
+                {
+                    Console.WriteLine("Template getting may fail");
+                }
+
+            }
+
         }
 
         private List<string[]> ParseMSIPCLog(string[] RawContent)
@@ -403,6 +502,22 @@ namespace SmallTool_MSIPC
             }
 
             return false;
+        }
+
+        private List<string[]> GroupInformation(List<string[]> input)
+        {
+            List<string[]> output = new List<string[]>();
+
+            foreach (string[] item in input)
+            {
+                if (Handler.IsFiltered(item[1], new string[] { "MSIPC_Information", "MSIPC_Information_2" }))
+                {
+                    item[1] = Handler.SubstringString(item[1], "MSIPC_Information").Trim('n').Trim('+').Trim();
+                    output.Add(item);
+                }
+            }
+
+            return output;
         }
 
 

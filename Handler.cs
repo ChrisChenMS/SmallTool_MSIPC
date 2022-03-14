@@ -201,6 +201,15 @@ namespace SmallTool_MSIPC
             return output;
         }
 
+        public string SubstringString(string input, string KeyWord)
+        {
+            string output;
+
+            output = input.Substring(input.IndexOf(ColumnFilter[KeyWord]) + ColumnFilter[KeyWord].Length);
+
+            return output;
+        }
+
         //public bool IsMSIPCRequest(string input)
         //{
         //    //return input.StartsWith("Initializing an HTTP request with Win");
