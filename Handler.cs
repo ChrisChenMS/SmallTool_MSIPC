@@ -190,7 +190,6 @@ namespace SmallTool_MSIPC
 
         public bool IsFiltered(string input, string[] KeyWord)
         {
-            bool output = false;
             foreach (string word in KeyWord)
             {
                 if (IsFiltered(input, word))
@@ -198,7 +197,19 @@ namespace SmallTool_MSIPC
                     return true;
                 }
             }
-            return output;
+            return false;
+        }
+
+        public bool Contains(string input, string[] KeyWord)
+        { 
+            foreach (string word in KeyWord)
+            {
+                if (input.Contains(word))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public string SubstringString(string input, string KeyWord)
@@ -208,6 +219,45 @@ namespace SmallTool_MSIPC
             output = input.Substring(input.IndexOf(ColumnFilter[KeyWord]) + ColumnFilter[KeyWord].Length);
 
             return output;
+        }
+
+        public List<List<string[]>> ListGroup(List<List<string[]>> input)
+        {
+            List<List<string[]>> output = new List<List<string[]>>();
+            List<List<string[]>> tempoutput = new List<List<string[]>>();
+            List<string[]> temp = new List<string[]>();
+            if (input.Count > 0)
+            {
+                output.Add(input[0]);
+                tempoutput.Add(input[0]);
+                foreach(var list in input.Skip(1).ToList())
+                {
+                    bool Found = false;
+                    foreach (var outlist in tempoutput)
+                    {
+                        if (list.Count == outlist.Count)
+                        {
+                            temp = new List<string[]>();
+                            foreach (string[] arr in outlist)
+                            {
+                                if (!list.Any(a => a.SequenceEqual(arr)))
+                                {
+                                    temp.Add(arr);
+                                }
+                            }
+                            if (temp.Count == 0)
+                            {
+                                Found = true;
+                            }
+                        }
+                    }
+                    if (!Found)
+                    {
+                        tempoutput.Add(list);
+                    }
+                }
+            }
+            return tempoutput;
         }
 
         //public bool IsMSIPCRequest(string input)

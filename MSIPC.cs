@@ -6,6 +6,7 @@ using SmallTool_MSIPC.Models;
 using System.Xml;
 using System.Linq;
 using System.Configuration;
+using ConsoleTables;
 
 namespace SmallTool_MSIPC
 {
@@ -19,6 +20,12 @@ namespace SmallTool_MSIPC
         private bool AIPInstalledFlag = false;
         private MSIPC_Rules Rule = new MSIPC_Rules();
         private MSIPC_BasicLogInfo BasicInfo = new MSIPC_BasicLogInfo();
+
+        //flag area
+        bool MachineActivationFlag = false;
+        bool ServiceDiscoveryFlag = false;
+        bool UserIdentityFlag = false;
+        bool TemplateFlag = false;
 
         private List<string> CommonHTTPResponse = ConfigurationManager.AppSettings["CommonHTTPResponse"].Replace(" ","").Split(',').ToList();
 
@@ -41,7 +48,7 @@ namespace SmallTool_MSIPC
             //initialize rule
             Rule = Handler.DeserializeRules(ProgramLocation);
 
-            if (Rule.Mode < 1 || Rule.Mode > 3)
+            if (Rule.Mode < 1 || Rule.Mode > 4)
             {
                 result.ErrMessage = "Invalid Mode in rule";
                 return result;
@@ -92,11 +99,18 @@ namespace SmallTool_MSIPC
                     foreach (string LogPath in MSIPCLogs)
                     {
 
+                        //initialize flags
+                        MachineActivationFlag = false;
+                        ServiceDiscoveryFlag = false;
+                        UserIdentityFlag = false;
+                        TemplateFlag = false;
+
                         Handler.TxtLogger(LogPath.Split('\\')[^1]);
 
                         //open file
                         string[] RawContent = File.ReadAllLines(LogPath).ToArray();
                         string LogFileName = LogPath.Split('\\')[^1];
+                        Console.WriteLine("\n\n++++++++++  " + LogFileName + "  ++++++++++");
 
                         //initially parse log
                         List<string[]> ParsedContent = ParseMSIPCLog(RawContent);
@@ -109,7 +123,7 @@ namespace SmallTool_MSIPC
                         }
                         if (Rule.RAC_CLC)
                         {
-
+                            RACAnalyse(ParsedContent, LogFileName);
                         }
                         if (Rule.Template)
                         {
@@ -119,7 +133,7 @@ namespace SmallTool_MSIPC
                         {
 
                         }
-                        
+                        Console.WriteLine("++++++++++  " + LogFileName + "  ++++++++++\n\n");
                     }
 
                     //conclusion display part
@@ -127,10 +141,10 @@ namespace SmallTool_MSIPC
                     //bootstrap info
                     if (Rule.Bootstrap)
                     {
-                        if (AIPInstalledFlag)
-                        {
-                            Console.WriteLine("\nAIP client is installed");
-                        }
+                        //if (AIPInstalledFlag)
+                        //{
+                        //    Console.WriteLine("\nAIP client is installed");
+                        //}
                     }
                 }
             }
@@ -145,10 +159,10 @@ namespace SmallTool_MSIPC
             string[] EULs = Directory.GetFiles(BaseLocation, "EUL-*");
             if (RACs.Length > 0)
             {
-                Console.WriteLine("==========RAC Info Begins==========");
+                Console.WriteLine("==========RAC Info in Cert Begins==========");
                 //RACAnalyze(RACs);
                 CertAnalyse(RACs, Rule.CertRules.RAC,"RAC");
-                Console.WriteLine("==========RAC Info Ends==========");
+                Console.WriteLine("==========RAC Info in Cert Ends==========");
             }
             else 
             {
@@ -157,9 +171,9 @@ namespace SmallTool_MSIPC
 
             if (CLCs.Length > 0)
             {
-                Console.WriteLine("==========CLC Info Begins==========");
+                Console.WriteLine("==========CLC Info in Cert Begins==========");
                 CertAnalyse(CLCs, Rule.CertRules.CLC,"CLC");
-                Console.WriteLine("==========CLC Info Ends==========");
+                Console.WriteLine("==========CLC Info in Cert Ends==========");
             }
             else
             {
@@ -167,9 +181,9 @@ namespace SmallTool_MSIPC
             }
             if (EULs.Length > 0)
             {
-                Console.WriteLine("==========EUL Info Begins==========");
+                Console.WriteLine("==========EUL Info in Cert Begins==========");
                 CertAnalyse(EULs, Rule.CertRules.EUL,"EUL");
-                Console.WriteLine("==========EUL Info Ends==========");
+                Console.WriteLine("==========EUL Info in Cert Ends==========");
             }
             else
             {
@@ -302,9 +316,16 @@ namespace SmallTool_MSIPC
                 //display basic info
                 Console.WriteLine(Handler.Serialize(BasicInfo) + "\n");
 
+                if (BasicInfo.AppName.Contains("MSIP.ExecutionHost32.exe"))
+                {
+                    AIPInstalledFlag = true;
+                    Console.WriteLine("AIP client is installed");
+                }
+
                 //print the requests and the responses
                 foreach (var Lines in GroupedRequestsAndResponses)
                 {
+                    var table = new ConsoleTable("Line", "Info");
                     foreach (var Line in Lines)
                     {
                         string LineNo = Line[0];
@@ -316,23 +337,33 @@ namespace SmallTool_MSIPC
                             string URL = RequestElement[0].Split('=')[1];
                             string RMSServiceId = URL.Split("//")[1].Split('/')[0];
                             string Service = URL.Split('/')[^2] + '/' + URL.Split('/')[^1];
-                            Console.WriteLine("line:" + (Int32.Parse(LineNo) + 1).ToString() + ": Request to " + RMSServiceId + ". Action: " + Service);
+
+                            table.AddRow((Int32.Parse(LineNo) + 1).ToString(),"Request to " + RMSServiceId + ". Action: " + Service);
+
+                            //Console.WriteLine("line:" + (Int32.Parse(LineNo) + 1).ToString() + ": Request to " + RMSServiceId + ". Action: " + Service);
                         }
                         else if (Handler.IsFiltered(Text, "MSIPC_Response"))
                         {
                             string Code = Text.Replace("-", "").Split('=')[1].Trim();
-                            Console.WriteLine("line:" + (Int32.Parse(LineNo) + 1).ToString() + ": With Response: " + Code);
+
+                            table.AddRow((Int32.Parse(LineNo) + 1).ToString(), "With Response: " + Code);
+
+                            //Console.WriteLine("line:" + (Int32.Parse(LineNo) + 1).ToString() + ": With Response: " + Code);
                         }
                         else if (Handler.IsFiltered(Text, "MSIPC_Correlation"))
                         {
                             string CorrelationId = Text.Substring(Text.IndexOf('{') + 1, Text.IndexOf('}') - Text.IndexOf('{') - 1);
-                            Console.WriteLine("line:" + (Int32.Parse(LineNo) + 1).ToString() + ": Correlation Id: " + CorrelationId);
+
+                            table.AddRow((Int32.Parse(LineNo) + 1).ToString(), "Correlation Id: " + CorrelationId);
+
+                            //Console.WriteLine("line:" + (Int32.Parse(LineNo) + 1).ToString() + ": Correlation Id: " + CorrelationId);
                         }
 
                         //var i = int32.parse(line[0]) + 1;
                         Handler.TxtLogger("line:" + (Int32.Parse(LineNo) + 1).ToString() + ":" + Text);
                         //Console.WriteLine("line:" + (Int32.Parse(LineNo) + 1).ToString() + ":" + Text);
                     }
+                    table.Configure(o => o.NumberAlignment = Alignment.Right).Write(Format.Alternative);
                     Console.WriteLine("");
                 }
 
@@ -355,18 +386,14 @@ namespace SmallTool_MSIPC
             if (GroupedInformation.Count > 0)
             {
                 int MachineActivationCount = 0;
-                bool MachineActivationFlag = false;
                 int ServiceDiscoveryCount = 0;
                 int ServiceDiscoverySuccessCount = 0;
-                bool ServiceDiscoveryFlag = false;
                 int UserIdentityCount = 0;
-                bool UserIdentityFlag = false;
                 int TemplateCount = 0;
-                bool TemplateFlag = false;
                 foreach (string[] Information in GroupedInformation)
                 {
                     Handler.TxtLogger("line:" + Information[0] + ": " + Information[1]);
-                    Console.WriteLine("line:" + Information[0] + ": " + Information[1]);
+                    //Console.WriteLine("line:" + Information[0] + ": " + Information[1]);
                     if (Handler.IsFiltered(Information[1], "MSIPC_MachineAvtivationFlag"))
                     {
                         MachineActivationCount++;
@@ -390,56 +417,182 @@ namespace SmallTool_MSIPC
                     }
                 }
 
+                var table = new ConsoleTable("Info", "Result");
+
                 //machine cert checking
                 if (MachineActivationCount > 1)
                 {
-                    Console.WriteLine("Machine activation ok");
+                    table.AddRow("Machine activation", "OK");
+                    //Console.WriteLine("Machine activation ok");
                 }
                 else if (MachineActivationCount == 1)
                 {
-                    Console.WriteLine("Machine activation may fail");
+                    table.AddRow("Machine activation", "May fail");
+                    //Console.WriteLine("Machine activation may fail");
                 }
                 else
                 {
-                    Console.WriteLine("Machine activation may skip");
+                    table.AddRow("Machine activation", "May skip");
+                    //Console.WriteLine("Machine activation may skip");
                 }
 
                 //service discovery checking. May need add AIP/not logic later
                 if (ServiceDiscoveryFlag)
                 {
-                    Console.WriteLine("Service discovery ok");
+                    table.AddRow("Service discovery", "OK");
+                    //Console.WriteLine("Service discovery ok");
                 }
                 else if (ServiceDiscoveryCount == 0)
                 {
-                    Console.WriteLine("Service discovery may skip or terminate");
+                    table.AddRow("Service discovery", "May skip or terminate");
+                    //Console.WriteLine("Service discovery may skip or terminate");
                 }
                 else
                 {
-                    Console.WriteLine("Service discovery may fail");
+                    table.AddRow("Service discovery", "May fail");
+                    //Console.WriteLine("Service discovery may fail");
                 }
 
                 //user identity
                 if (UserIdentityFlag)
                 {
-                    Console.WriteLine("User identity initialization ok");
+                    table.AddRow("User identity initialization", "OK");
+                    //Console.WriteLine("User identity initialization ok");
                 }
                 else
                 {
-                    Console.WriteLine("User identity initialization may fail");
+                    table.AddRow("User identity initialization", "May fail");
+                    //Console.WriteLine("User identity initialization may fail");
                 }
 
                 //template
                 if (TemplateFlag)
                 {
-                    Console.WriteLine("Template getting ok");
+                    table.AddRow("Template getting", "OK");
+                    //Console.WriteLine("Template getting ok\n");
                 }
                 else
                 {
-                    Console.WriteLine("Template getting may fail");
+                    table.AddRow("Template getting", "May fail");
+                    //Console.WriteLine("Template getting may fail\n");
                 }
+
+                table.Configure(o => o.NumberAlignment = Alignment.Right).Write(Format.Alternative);
+                Console.WriteLine("");
 
             }
 
+        }
+
+        private void RACAnalyse(List<string[]> content, string FileName)
+        {
+            List<List<string[]>> GroupedRACInformation = GroupRACInformation(content);
+
+
+            //RAC CLC info
+            if (GroupedRACInformation[0].Count > 0)
+            {
+                List<string[]> RACCLCInformation = GroupedRACInformation[0];
+                List<List<string[]>> RACCLCInformationOutput = new List<List<string[]>>();
+                List<string[]> Set = new List<string[]>();
+                string CompareString = "";
+
+                foreach (string[] Information in RACCLCInformation)
+                {
+                    List<string[]> TempSet = new List<string[]>();
+                    if (Handler.IsFiltered(Information[1],new string[] { "MSIPC_LicenseRAC", "MSIPC_LicenseCLC" }))
+                    {
+                        string Type = Information[1].Split(':')[0];
+                        string[] temp = Information[1].Trim(',').Split(": ");
+                        string Name = temp[0].Split(':')[1];
+                        string Value = temp[1];
+                        if (CompareString == "")
+                        {
+                            CompareString = Type;
+                            Set.Add(new string[] { Type, Name, Value });
+                        }
+                        else if (CompareString == Type)
+                        {
+                            Set.Add(new string[] { Type, Name, Value });
+                        }
+                        else 
+                        {
+                            TempSet = Set;
+                            RACCLCInformationOutput.Add(TempSet);
+                            Set = new List<string[]>();
+                            CompareString = Type;
+                            Set.Add(new string[] { Type, Name, Value });
+                        }
+                    }
+                }
+                if (Set.Count > 0)
+                {
+                    RACCLCInformationOutput.Add(Set);
+                }
+
+                //delete repeated RAC/CLC
+                RACCLCInformationOutput = Handler.ListGroup(RACCLCInformationOutput);
+
+
+                //prepare the table
+                Console.WriteLine("==========RAC CLC Info in Logs Begins==========");
+                foreach (List<string[]> License in RACCLCInformationOutput)
+                {
+                    string Type = License[0][0];
+                    Console.WriteLine(Type);
+                    var table = new ConsoleTable("Name","Value");
+                    foreach (string[] row in License)
+                    { 
+                        table.AddRow(row[1],row[2]);
+                        Handler.TxtLogger(Type + " " + row[1] + " " + row[2]);
+                    }
+                    table.Configure(o => o.NumberAlignment = Alignment.Right).Write(Format.Alternative);
+                }
+                Console.WriteLine("==========RAC CLC Info in Logs Ends==========\n");
+            }
+
+            //license info
+            if (GroupedRACInformation[1].Count > 0)
+            {
+                List<string[]> LicenseInformation = GroupedRACInformation[1];
+                List<string[]> LicenseInformationOutput = new List<string[]>();
+                bool CleanLicenseFlag = false;
+
+                foreach (string[] Information in LicenseInformation)
+                {
+                    if (Handler.IsFiltered(Information[1], "MSIPC_LicenseDeleted"))
+                    {
+                        LicenseInformationOutput.Clear();
+                    }
+                    else if (Handler.IsFiltered(Information[1], "MSIPC_LicenseFound"))
+                    {
+                        LicenseInformationOutput.Add(Information);
+                    }
+                    Handler.TxtLogger("line:" + (Int32.Parse(Information[0]) + 1).ToString() + ": " + Information[1]);
+                }
+
+                List<string> Licenses = LicenseInformationOutput.Select(x=>x[1]).Distinct().ToList();
+
+                if (Licenses.Count > 0)
+                {
+                    var table = new ConsoleTable("Info");
+
+                    Console.WriteLine("==========License Info in Logs Begins==========");
+                    foreach (string License in Licenses)
+                    {
+                        Handler.TxtLogger("License found: " + License);
+                        //Console.WriteLine("License found: " + License);
+                        table.AddRow("License found");
+                        table.AddRow(License.Split(" - ")[1]);
+                    }
+                    table.Configure(o => o.NumberAlignment = Alignment.Right).Write(Format.Alternative);
+                    Console.WriteLine("==========License Info in Logs Ends==========");
+                }
+                else 
+                {
+                    Console.WriteLine("No RAC&CLC info in Logs");
+                }
+            }
         }
 
         private List<string[]> ParseMSIPCLog(string[] RawContent)
@@ -512,10 +665,61 @@ namespace SmallTool_MSIPC
             {
                 if (Handler.IsFiltered(item[1], new string[] { "MSIPC_Information", "MSIPC_Information_2" }))
                 {
-                    item[1] = Handler.SubstringString(item[1], "MSIPC_Information").Trim('n').Trim('+').Trim();
-                    output.Add(item);
+                    string[] newItem = new string[2];
+                    newItem[0] = item[0];
+                    newItem[1] = Handler.SubstringString(item[1], "MSIPC_Information").Trim('n').Trim('+').Trim();
+                    output.Add(newItem);
                 }
             }
+
+            return output;
+        }
+
+        private List<List<string[]>> GroupRACInformation(List<string[]> input)
+        {
+            //output:
+            //[0] license store processes
+            //[1] RAC/CLC issue
+            List<List<string[]>> output = new List<List<string[]>>();
+
+            List<string[]> RAC_CLC_Info = new List<string[]>();
+            List<string[]> LicenseInfo = new List<string[]>();
+            foreach (string[] item in input)
+            {
+                if (Handler.Contains(item[1], new string[] { " RAC", "GIC", " CLC" }))
+                {
+                    string[] newItem = new string[2];
+                    newItem[0] = item[0];
+                    if (Handler.Contains(item[1], new string[] { "RAC details", "CLC details" }))
+                    {
+                        newItem[1] = item[1].Trim().Trim('-').Trim('+').Trim();
+                        RAC_CLC_Info.Add(newItem);
+                        int index = input.IndexOf(item) + 1;
+                        string Detail = item[1].Split(':')[1];
+                        while (input[index][1].StartsWith("     "))
+                        {
+                            newItem = new string[2];
+                            newItem[0] = input[index][0];
+                            newItem[1] = Detail.Trim() + ":" + input[index][1].Trim();
+                            RAC_CLC_Info.Add(newItem);
+                            index++;
+                        }
+                    }
+                    else if (Handler.IsFiltered(item[1], "MSIPC_License"))
+                    {
+                        newItem[1] = item[1];
+                        LicenseInfo.Add(newItem);
+                    }
+                    else
+                    {
+                        newItem[1] = item[1].Trim().Trim('-').Trim('+').Trim();
+                        RAC_CLC_Info.Add(newItem);
+                    }
+                }
+            }
+
+            output.Add(RAC_CLC_Info);
+            output.Add(LicenseInfo);
 
             return output;
         }

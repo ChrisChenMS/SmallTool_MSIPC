@@ -65,6 +65,11 @@ namespace SmallTool_MSIPC.Models
                         this.RAC_CLC = true;
                         this.EUL = true;
                         break;
+                    case 4:
+                        this.Template = false;
+                        this.RAC_CLC = false;
+                        this.EUL = false;
+                        break;
                     default:
                         this.Mode = 0;
                         break;
