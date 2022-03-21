@@ -26,6 +26,7 @@ namespace SmallTool_MSIPC
         bool ServiceDiscoveryFlag = false;
         bool UserIdentityFlag = false;
         bool TemplateFlag = false;
+        //bool TemplateDownloadFlag = false;
 
         private List<string> CommonHTTPResponse = ConfigurationManager.AppSettings["CommonHTTPResponse"].Replace(" ","").Split(',').ToList();
 
@@ -127,11 +128,11 @@ namespace SmallTool_MSIPC
                         }
                         if (Rule.Template)
                         {
-
+                            TemplateAnalyse(ParsedContent, LogFileName);
                         }
                         if (Rule.EUL)
                         {
-
+                            DecryptAnalyse(ParsedContent, LogFileName);
                         }
                         Console.WriteLine("++++++++++  " + LogFileName + "  ++++++++++\n\n");
                     }
@@ -159,10 +160,10 @@ namespace SmallTool_MSIPC
             string[] EULs = Directory.GetFiles(BaseLocation, "EUL-*");
             if (RACs.Length > 0)
             {
-                Console.WriteLine("==========RAC Info in Cert Begins==========");
+                //Console.WriteLine("==========RAC Info in Cert Begins==========");
                 //RACAnalyze(RACs);
                 CertAnalyse(RACs, Rule.CertRules.RAC,"RAC");
-                Console.WriteLine("==========RAC Info in Cert Ends==========");
+                //Console.WriteLine("==========RAC Info in Cert Ends==========");
             }
             else 
             {
@@ -171,9 +172,9 @@ namespace SmallTool_MSIPC
 
             if (CLCs.Length > 0)
             {
-                Console.WriteLine("==========CLC Info in Cert Begins==========");
+                //Console.WriteLine("==========CLC Info in Cert Begins==========");
                 CertAnalyse(CLCs, Rule.CertRules.CLC,"CLC");
-                Console.WriteLine("==========CLC Info in Cert Ends==========");
+                //Console.WriteLine("==========CLC Info in Cert Ends==========");
             }
             else
             {
@@ -252,14 +253,24 @@ namespace SmallTool_MSIPC
                 }
             }
 
+            //display output
 
             if (Identities.Distinct().ToList().Count > 1)
             {
-                Console.WriteLine("There are multiple identities recorded in the RAC/CLC sets, which are " + JsonSerializer.Serialize(Identities.Distinct().ToList(), new JsonSerializerOptions()));
+                var table = new ConsoleTable(Type + " Status", "Bad");
+                foreach (var identity in Identities)
+                {
+                    table.AddRow("", identity);
+                }
+                table.Configure(o => o.NumberAlignment = Alignment.Right).Write(Format.Alternative);
+                //Console.WriteLine("There are multiple identities recorded in the RAC/CLC sets, which are " + JsonSerializer.Serialize(Identities.Distinct().ToList(), new JsonSerializerOptions()));
             }
-            else if(Type != "EUL")
+            else if (Type != "EUL")
             {
-                Console.WriteLine("Identity is good. Only identity " + JsonSerializer.Serialize(Identities.Distinct()) + "is in the log");
+                var table = new ConsoleTable(Type + " Status", "Good");
+                table.AddRow("", Identities[0]);
+                //Console.WriteLine("Identity is good. Only identity " + JsonSerializer.Serialize(Identities.Distinct()) + "is in the log");
+                table.Configure(o => o.NumberAlignment = Alignment.Right).Write(Format.Alternative);
             }
         }
 
@@ -316,10 +327,13 @@ namespace SmallTool_MSIPC
                 //display basic info
                 Console.WriteLine(Handler.Serialize(BasicInfo) + "\n");
 
-                if (BasicInfo.AppName.Contains("MSIP.ExecutionHost32.exe"))
+                if (BasicInfo.AppName != null)
                 {
-                    AIPInstalledFlag = true;
-                    Console.WriteLine("AIP client is installed");
+                    if (BasicInfo.AppName.Contains("MSIP.ExecutionHost32.exe"))
+                    {
+                        AIPInstalledFlag = true;
+                        Console.WriteLine("AIP client is installed");
+                    }
                 }
 
                 //print the requests and the responses
@@ -330,6 +344,8 @@ namespace SmallTool_MSIPC
                     {
                         string LineNo = Line[0];
                         string Text = Line[1];
+
+                        
 
                         if (Handler.IsFiltered(Text, "MSIPC_Request"))
                         {
@@ -364,7 +380,13 @@ namespace SmallTool_MSIPC
                         //Console.WriteLine("line:" + (Int32.Parse(LineNo) + 1).ToString() + ":" + Text);
                     }
                     table.Configure(o => o.NumberAlignment = Alignment.Right).Write(Format.Alternative);
-                    Console.WriteLine("");
+
+                    //Template download flag set
+                    //if (!TemplateDownloadFlag)
+                    //{
+                    //    TemplateDownloadFlag = Lines[0][1].Contains("licensing/templatedistribution.asmx") && Lines.Any(x => x[1].Contains("200 ------"));
+                    //}
+                    
                 }
 
                 Console.WriteLine("==========MSIPC Traces Ends==========\n");
@@ -394,7 +416,7 @@ namespace SmallTool_MSIPC
                 {
                     Handler.TxtLogger("line:" + Information[0] + ": " + Information[1]);
                     //Console.WriteLine("line:" + Information[0] + ": " + Information[1]);
-                    if (Handler.IsFiltered(Information[1], "MSIPC_MachineAvtivationFlag"))
+                    if (Handler.IsFiltered(Information[1], "MSIPC_MachineActivationFlag"))
                     {
                         MachineActivationCount++;
                     }
@@ -595,6 +617,230 @@ namespace SmallTool_MSIPC
             }
         }
 
+        private void TemplateAnalyse(List<string[]> content, string FileName)
+        {
+            List<List<string[]>> Templates = GroupTemplateInformation(content);
+            //Check if the log has templatedistribution successful info
+            if (Templates.Count > 0)
+            {
+                Console.WriteLine("==========Template Info in Logs Begins==========");
+                Templates = Handler.ListGroup(Templates);
+                foreach (List<string[]> template in Templates)
+                {
+                    var table = new ConsoleTable("Name", "Info");
+                    foreach (string[] info in template)
+                    {
+                        table.AddRow(info[0].Split(':')[0], info[0].Split(':')[1].Trim().Trim('"'));
+                    }
+                    table.Configure(o => o.NumberAlignment = Alignment.Right).Write(Format.Alternative);
+                }
+                Console.WriteLine("==========Template Info in Logs Ends==========");
+            }
+        }
+
+        private void DecryptAnalyse(List<string[]> content, string FileName)
+        {
+            List<List<string[]>> RawDecryptInfo = GroupDecryptionInformation(content);
+            List<List<string[]>> DecryptInfo = new List<List<string[]>>();
+            List<MSIPC_PL> PLList = new List<MSIPC_PL>();
+            
+            foreach(List<string[]> process in RawDecryptInfo)
+            {
+                bool OwnerFlag = false;
+                List<string[]> GroupedDecryptInfo = new List<string[]>();
+                foreach (string[] line in process)
+                {
+                    //Console.WriteLine("Line: " + line[0] + ": " + line[1]);
+                    if (Handler.IsFiltered(line[1], "MSIPC_PL"))
+                    {
+                        int index = process.IndexOf(line) + 1;
+                        MSIPC_PL PL = JsonSerializer.Deserialize<MSIPC_PL>(process[index][1]);
+                        if (PLList.FindIndex(x => x.ContentId == PL.ContentId) < 0)
+                        {
+                            PLList.Add(PL);
+                        }
+                    }
+                    else if (line[1].StartsWith('{') && line[1].EndsWith('}') || Handler.IsFiltered(line[1], "MSIPC_RequestedRights"))
+                    {
+                        continue;
+                    }
+                    else if (Handler.IsFiltered(line[1], "MSIPC_AccessCheck") && !OwnerFlag)
+                    {
+                        if (line[1].Contains("true"))
+                        {
+                            int index = process.IndexOf(line);
+                            GroupedDecryptInfo.Add(process[index - 1]);
+                            GroupedDecryptInfo.Add(process[index]);
+                            if (Handler.IsFiltered(process[index - 1][1], "MSIPC_OwnerPermission"))
+                            {
+                                OwnerFlag = true;
+                            }
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+                    else if (!Handler.IsFiltered(line[1], "MSIPC_AccessCheck"))
+                    {
+                        GroupedDecryptInfo.Add(line);
+                    }
+
+                }
+                DecryptInfo.Add(GroupedDecryptInfo);
+            }
+
+            //display PL info
+            if (PLList.Count > 0)
+            {
+                Console.WriteLine("==========PL Info in Logs Begins==========");
+                foreach (MSIPC_PL PL in PLList)
+                {
+                    var table = new ConsoleTable("Attribute", "Vaule");
+                    table.AddRow("Intranet URL", PL.IntranetLicensingUrl);
+                    table.AddRow("Extranet URL", PL.ExtranetLicensingUrl);
+                    table.AddRow("Issuer Name", PL.IssuerName);
+                    table.AddRow("Owner", PL.Owner);
+                    table.AddRow("Content Id", PL.ContentId);
+                    table.AddRow("Valid Until", PL.ContentValiduntil);
+                    table.Configure(o => o.NumberAlignment = Alignment.Right).Write(Format.Alternative);
+                }
+                Console.WriteLine("==========PL Info in Logs Ends==========\n");
+            }
+
+            //display decrept process
+            if (DecryptInfo.Count > 0)
+            {
+                Console.WriteLine("==========Decryption Info in Logs Begins==========");
+                foreach (List<string[]> process in DecryptInfo)
+                {
+                    var table = new ConsoleTable("Line", "Info");
+                    bool OwnerFlag = false;
+                    bool DecryptSuccessulFlag = false;
+                    foreach (string[] line in process)
+                    {
+                        string LineNo = (Int32.Parse(line[0]) + 1).ToString();
+                        string Text = line[1];
+
+                        Handler.TxtLogger("line:" + LineNo + ":" + Text);
+
+
+
+                        if (Handler.IsFiltered(Text, "MSIPC_Request"))
+                        {
+                            string[] RequestElement = Text.Split(',');
+                            string URL = RequestElement[0].Split('=')[1];
+                            string RMSServiceId = URL.Split("//")[1].Split('/')[0];
+                            string Service = URL.Split('/')[^2] + '/' + URL.Split('/')[^1];
+
+                            table.AddRow(LineNo, "Request to " + RMSServiceId + ". Action: " + Service);
+                        }
+                        else if (Handler.IsFiltered(Text, "MSIPC_Correlation"))
+                        {
+                            string CorrelationId = Text.Substring(Text.IndexOf('{') + 1, Text.IndexOf('}') - Text.IndexOf('{') - 1);
+
+                            table.AddRow(LineNo, "Correlation Id: " + CorrelationId);
+                        }
+                        else if (Handler.IsFiltered(Text, "MSIPC_Response"))
+                        {
+                            string Code = Text.Replace("-", "").Split('=')[1].Trim();
+
+                            table.AddRow(LineNo, "With Response: " + Code);
+                        }
+                        else if (Handler.IsFiltered(Text, new string[] { "MSIPC_DecryptionSucc", "MSIPC_DecryptionSucc_2" }))
+                        {
+                            DecryptSuccessulFlag = true;
+                            table.AddRow(LineNo, "Get EUL from server or context successfully");
+                        }
+                        else if (Handler.IsFiltered(Text, "MSIPC_DecryptionFail"))
+                        {
+                            table.Columns[1] = "Info(Failed)";
+                            table.AddRow(LineNo, Text);
+                        }
+                        else if (Handler.IsFiltered(Text, "MSIPC_DecryptionRAC"))
+                        {
+                            List<string> Emails = Handler.GetEmails(Text);
+
+                            table.AddRow(LineNo, "Email in RAC: " + Emails[0]);
+                            table.AddRow(LineNo, "Email in EUL: " + Emails[1]);
+                        }
+                        else if (Handler.IsFiltered(Text, "MSIPC_DecryptionRACPrincipal"))
+                        {
+                            List<string> PrincipalIds = Handler.GetIds(Text);
+                            if (PrincipalIds.Count > 0)
+                            {
+                                if (PrincipalIds[0] == PrincipalIds[1])
+                                {
+                                    table.AddRow(LineNo, "The Principal IDs are equal, which is: " + PrincipalIds[0]);
+                                }
+                                else
+                                {
+                                    table.AddRow(LineNo, "The Principal ID in RAC: " + PrincipalIds[0]);
+                                    table.AddRow(LineNo, "The Principal ID in EUL: " + PrincipalIds[1]);
+                                }
+                            }
+                            else
+                            {
+                                table.AddRow(LineNo, "Somethine wrong here");
+                            }
+
+                        }
+                        else if (Handler.IsFiltered(Text, "MSIPC_ContentID"))
+                        {
+                            List<string> ContentIds = Handler.GetIds(Text);
+                            if (ContentIds.Count > 0)
+                            {
+                                if (ContentIds[0] == ContentIds[1])
+                                {
+                                    table.AddRow(LineNo, "The Content IDs are equal, which is: " + ContentIds[0]);
+                                }
+                                else
+                                {
+                                    table.AddRow(LineNo, "The Content ID in RAC: " + ContentIds[0]);
+                                    table.AddRow(LineNo, "The Content ID in RAC: " + ContentIds[1]);
+                                }
+                            }
+                            else
+                            {
+                                table.AddRow(LineNo, "Somethine wrong here");
+                            }
+                        }
+                        else if (Handler.IsFiltered(Text, "MSIPC_OwnerPermission"))
+                        {
+                            if (DecryptSuccessulFlag)
+                            {
+                                table.Columns[1] = "Info(Successful)";
+                            }
+                            else
+                            {
+                                table.Columns[1] = "Info(Suspicious)";
+                            }
+
+                            table.AddRow(LineNo, "The current principal is the OWNER");
+                            OwnerFlag = true;
+                        }
+                        else if (Handler.IsFiltered(Text, "MSIPC_ViewPermission") && !OwnerFlag)
+                        {
+                            if (DecryptSuccessulFlag)
+                            {
+                                table.Columns[1] = "Info(Successful)";
+                            }
+                            else
+                            {
+                                table.Columns[1] = "Info(Suspicious)";
+                            }
+                            table.AddRow(LineNo, "The current principal at least has VIEW permission");
+                        }
+                    }
+                    if (table.Rows.Count > 0)
+                    {
+                        table.Configure(o => o.NumberAlignment = Alignment.Right).Write(Format.Alternative);
+                    }
+                }
+                Console.WriteLine("==========Decryption Info in Logs Ends==========\n");
+            }
+        }
+
         private List<string[]> ParseMSIPCLog(string[] RawContent)
         {
             List<string[]> ParsedContent = new List<string[]>();
@@ -675,11 +921,11 @@ namespace SmallTool_MSIPC
             return output;
         }
 
+        //output:
+        //[0] RAC/CLC issue
+        //[1] license store processes
         private List<List<string[]>> GroupRACInformation(List<string[]> input)
         {
-            //output:
-            //[0] license store processes
-            //[1] RAC/CLC issue
             List<List<string[]>> output = new List<List<string[]>>();
 
             List<string[]> RAC_CLC_Info = new List<string[]>();
@@ -696,7 +942,8 @@ namespace SmallTool_MSIPC
                         RAC_CLC_Info.Add(newItem);
                         int index = input.IndexOf(item) + 1;
                         string Detail = item[1].Split(':')[1];
-                        while (input[index][1].StartsWith("     "))
+                        //while(input[index][1].StartsWith("     "))
+                        while (Handler.IsFiltered(input[index][1],"SPACE_5"))
                         {
                             newItem = new string[2];
                             newItem[0] = input[index][0];
@@ -724,7 +971,98 @@ namespace SmallTool_MSIPC
             return output;
         }
 
+        //output
+        //Template Information
+        private List<List<string[]>> GroupTemplateInformation(List<string[]> input)
+        {
+            List<List<string[]>> output = new List<List<string[]>>();
+            List<string[]> template;
 
+            foreach (string[] item in input)
+            {
+                if (Handler.IsFiltered(item[1], "MSIPC_Template"))
+                {
+                    template = new List<string[]>();
+                    int index = input.IndexOf(item) + 1;
+                    while (Handler.IsFiltered(input[index][1], "SPACE_5"))
+                    {
+                        var newItem = new string[2];
+                        //newItem[0] = input[index][0];
+                        newItem[0] = input[index][1].Trim().Trim(',').Trim('.');
+                        template.Add(newItem);
+                        index++;
+                    }
+                    output.Add(template);
+                }
+            }
+            return output;
+        }
 
+        private List<List<string[]>> GroupDecryptionInformation(List<string[]> input)
+        {
+            List<List<string[]>> output = new List<List<string[]>>();
+            List<string[]> Process = new List<string[]>();
+
+            foreach (string[] item in input)
+            {
+                
+                int index = input.IndexOf(item) + 1;
+                if (Handler.IsFiltered(item[1], "MSIPC_PL"))
+                {
+                    if (Process.Count > 0 && Process.Count != 7)
+                    {
+                        output.Add(Process);
+                    }
+                    Process = new List<string[]>();
+                    //Console.WriteLine("\nLine: " + item[0] + ": " + item[1].Trim('+').Trim().Trim(':'));
+                    Process.Add(item);
+
+                    string SerializedPL = "{";
+                    while (Handler.IsFiltered(input[index][1], "SPACE_5"))
+                    {
+                        //Console.WriteLine("Line: " + input[index][0] + ": " + input[index][1].Trim(','));
+                        //Process.Add(input[index]);
+                        string[] LineInfo = input[index][1].Split(": ");
+                        SerializedPL = SerializedPL +"'"+ LineInfo[0].Trim().Replace(" ","")+"':'" + LineInfo[1].Trim(',').Trim('.').Trim('"').Trim('\\')+ "',"; 
+                        index++;
+                    }
+                    Process.Add(new string[] { item[0], (SerializedPL.Trim(',') + "}").Replace('\'','"') });
+                }
+                else if (Handler.IsFiltered(item[1], new string[] { "MSIPC_DecryptionRAC", "MSIPC_ContentID", "MSIPC_DecryptionSucc", "MSIPC_DecryptionSucc_2", "MSIPC_DecryptionFail", "MSIPC_DecryptionRACPrincipal" }))
+                {
+                    //Console.WriteLine("Line: " + item[0] + ": " + item[1].Trim('+').Trim());
+                    Process.Add(item);
+                }
+                else if (Handler.IsFiltered(item[1], "MSIPC_Request") && item[1].ToLower().Contains("license.asmx"))
+                {
+                    //Console.WriteLine("Line: " + item[0] + ": " + item[1]);
+                    Process.Add(item);
+
+                    int CorrelationIndex = input.FindIndex(index, input.Count - index, x => Handler.IsFiltered(x[1], "MSIPC_Correlation"));
+                    //Console.WriteLine("Line: " + input[CorrelationIndex][0] + ": " + input[CorrelationIndex][1]);
+                    Process.Add(input[CorrelationIndex]);
+
+                    int ResponseIndex = input.FindIndex(index, input.Count - index, x => Handler.IsFiltered(x[1], "MSIPC_Response"));
+                    //Console.WriteLine("Line: " + input[ResponseIndex][0] + ": " + input[ResponseIndex][1].Trim('-').Trim());
+                    Process.Add(input[ResponseIndex]);
+
+                }
+                else if ((Handler.IsFiltered(item[1], "MSIPC_ViewPermission") && item[1].EndsWith('W')) || Handler.IsFiltered(item[1], "MSIPC_OwnerPermission"))
+                {
+                    //Console.WriteLine("Line: " + item[0] + ": " + item[1]);
+                    Process.Add(item);
+
+                    int AccessCheckIndex = input.FindIndex(index, input.Count - index, x => Handler.IsFiltered(x[1], "MSIPC_AccessCheck"));
+                    //Console.WriteLine("Line: " + input[AccessCheckIndex][0] + ": " + input[AccessCheckIndex][1]);
+                    Process.Add(input[AccessCheckIndex]);
+                }
+            }
+            if (Process.Count > 0 && Process.Count != 7)
+            {
+                output.Add(Process);
+            }
+
+            return output;
+        }
     }
 }

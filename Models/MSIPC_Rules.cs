@@ -21,6 +21,7 @@ namespace SmallTool_MSIPC.Models
         // 1 Encryption
         // 2 Decryption
         // 3 All
+        // 4 None
         public int Mode { get; set; }
 
         public bool Bootstrap { get; set; }
@@ -35,7 +36,6 @@ namespace SmallTool_MSIPC.Models
 
         public void Initialize()
         {
-            this.CertAnalyse = true;
             if (LogAnalyse)
             {
                 //LogAnalyse will analyse bootstrap
@@ -57,7 +57,7 @@ namespace SmallTool_MSIPC.Models
                         break;
                     case 2:
                         this.Template = false;
-                        this.RAC_CLC = true;
+                        this.RAC_CLC = false;
                         this.EUL = true;
                         break;
                     case 3:
@@ -66,6 +66,7 @@ namespace SmallTool_MSIPC.Models
                         this.EUL = true;
                         break;
                     case 4:
+                        this.Bootstrap = false;
                         this.Template = false;
                         this.RAC_CLC = false;
                         this.EUL = false;

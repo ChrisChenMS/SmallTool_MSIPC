@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Text.Json;
 using SmallTool_MSIPC.Models;
@@ -223,12 +224,12 @@ namespace SmallTool_MSIPC
 
         public List<List<string[]>> ListGroup(List<List<string[]>> input)
         {
-            List<List<string[]>> output = new List<List<string[]>>();
+            //List<List<string[]>> output = new List<List<string[]>>();
             List<List<string[]>> tempoutput = new List<List<string[]>>();
             List<string[]> temp = new List<string[]>();
             if (input.Count > 0)
             {
-                output.Add(input[0]);
+                //output.Add(input[0]);
                 tempoutput.Add(input[0]);
                 foreach(var list in input.Skip(1).ToList())
                 {
@@ -285,5 +286,41 @@ namespace SmallTool_MSIPC
         //{
         //    return IsMSIPCRequest(input) || IsMSIPCReponse(input) || IsMSIPCCorrelation(input);
         //}
+
+        public List<string> GetEmails(string input)
+        {
+            List<string> output = new List<string>();
+
+            Regex emailRegex = new Regex(@"\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*", RegexOptions.IgnoreCase);
+            MatchCollection emailMatches = emailRegex.Matches(input);
+            foreach (Match emailMatch in emailMatches)
+            {
+                output.Add(emailMatch.Value);
+            }
+
+            return output;
+        }
+
+
+        //get string between {}
+        public List<string> GetIds(string input)
+        {
+            List<string> output = new List<string>();
+
+            Regex CurlyBracesRegex = new Regex(@"{(.*?)}", RegexOptions.IgnoreCase);
+            Regex DoubleQuotesRegex = new Regex("\"([^\"]*)\"", RegexOptions.IgnoreCase);
+            MatchCollection IdMatches = CurlyBracesRegex.Matches(input);
+            if (IdMatches.Count == 0)
+            {
+                IdMatches = DoubleQuotesRegex.Matches(input);
+            }
+
+            foreach (Match IdMatch in IdMatches)
+            {
+                output.Add(IdMatch.Groups[1].Value);
+            }
+
+            return output;
+        }
     }
 }
