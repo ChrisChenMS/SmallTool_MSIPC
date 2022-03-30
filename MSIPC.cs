@@ -34,7 +34,9 @@ namespace SmallTool_MSIPC
         {
             result.Flag = true;
             Handler.InitializeLogFile();
-            
+
+            //initialize rule
+            Rule = Handler.DeserializeRules(ProgramLocation);
 
             //initialize MSIPC location
             BaseLocation = Handler.LocationValidator(Location, Rule.LogOnly);
@@ -45,9 +47,6 @@ namespace SmallTool_MSIPC
                 result.ErrMessage = "Not a valid MSIPC or MSIPC log path";
                 return result;
             }
-
-            //initialize rule
-            Rule = Handler.DeserializeRules(ProgramLocation);
 
             if (Rule.Mode < 1 || Rule.Mode > 4)
             {
