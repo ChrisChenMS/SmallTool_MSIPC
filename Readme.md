@@ -67,6 +67,7 @@ This tool uses **rules.json** file to define the requirements:
    2: Decryption
 
    3: Both encryption and decryption analysis
+   
    4: Only log trace analysis
 
  - ResponseType:
