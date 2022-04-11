@@ -322,5 +322,39 @@ namespace SmallTool_MSIPC
 
             return output;
         }
+
+        //used in request&response group, check if the following responses contain needed code
+        public bool IfFollowingElementContainsCodeList(List<string> CodeList, List<string[]> Session, int index = 0)
+        {
+            if (index >= Session.Count)
+            {
+                return false;
+            }
+            else if (index < Session.Count - 1)
+            {
+                if (Session[index + 1].Length != 2)
+                {
+                    return false;
+                }
+                if (CodeList.Any(x => Session[index + 1][1].Contains(x)) && IsFiltered(Session[index + 1][1], "MSIPC_Response"))
+                {
+                    return true;
+                }
+                else if (IsFiltered(Session[index + 1][1], "MSIPC_Correlation"))
+                {
+                    return false;
+                }
+                else
+                {
+                    index++;
+                    return IfFollowingElementContainsCodeList(CodeList, Session, index);
+                }
+            }
+            else 
+            {
+                return CodeList.Any(x => Session[index][1].Contains(x));
+            }
+
+        }
     }
 }

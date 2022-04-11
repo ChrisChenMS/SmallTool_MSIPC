@@ -28,7 +28,7 @@ namespace SmallTool_MSIPC
         bool TemplateFlag = false;
         //bool TemplateDownloadFlag = false;
 
-        private List<string> CommonHTTPResponse = ConfigurationManager.AppSettings["CommonHTTPResponse"].Replace(" ","").Split(',').ToList();
+        private List<string> CommonHTTPResponse = ConfigurationManager.AppSettings["CommonHTTPResponse"].Replace(" ","").Replace("\r\n\t\t\t","").Split(',').ToList();
 
         public MSIPC_Response Analyse(string Location) 
         {
@@ -301,8 +301,15 @@ namespace SmallTool_MSIPC
                         var Index = Session.IndexOf(Line);
                         if (Index > 0 && Handler.IsFiltered(Session[Index - 1][1], "MSIPC_Correlation"))
                         {
-                            Session.Remove(Session[Index-1]);
-                            Session.Remove(Line);
+                            if ((Index + 1) < TempSession.Count && Handler.IfFollowingElementContainsCodeList(CodeList, Session, Index))
+                            {
+                                Session.Remove(Line);
+                            }
+                            else 
+                            {
+                                Session.Remove(Session[Index - 1]);
+                                Session.Remove(Line);
+                            }
                         }
                         else
                         {
