@@ -46,7 +46,7 @@ This tool uses **rules.json** file to define the requirements:
 }
 ```
 
- -  LogFileOrderBy：
+ - LogFileOrderBy：
 
    1: Time order
 
