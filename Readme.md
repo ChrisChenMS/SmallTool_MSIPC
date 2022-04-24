@@ -46,12 +46,6 @@ This tool uses **rules.json** file to define the requirements:
 }
 ```
 
- - LogFileOrderBy：
-
-   1: Time order
-
-   2: Time desc order
-
  - LogOnly:
 
    true: This mode will focus on Logs folder only, no certificate analysis will be included in report. Input the folder path of Logs or a single *.ipclog file.
@@ -63,6 +57,12 @@ This tool uses **rules.json** file to define the requirements:
    true: Use this tool to analyze logs in MSIPC folder.
 
    false: Exclude log analysis.
+   
+ - LogFileOrderBy：
+
+   1: Time order
+
+   2: Time desc order
 
  - CertAnalyse:
 
