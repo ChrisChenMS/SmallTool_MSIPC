@@ -96,8 +96,29 @@ namespace SmallTool_MSIPC
 
                 if (MSIPCLogs.Length > 0) 
                 {
-                    foreach (string LogPath in MSIPCLogs)
+                    //get file modified time and sort
+                    Dictionary<string, string> MSIPCModifiedTime = new Dictionary<string, string>();
+                    foreach (string path in MSIPCLogs)
+                    { 
+                        DateTime ModifiedTime = File.GetLastWriteTime(path);
+                        MSIPCModifiedTime.Add(path, ModifiedTime.ToString());
+
+                    }
+                    Dictionary<string, string> OrderedMSIPCLogs = MSIPCModifiedTime;
+
+                    if (Rule.LogFileOrderBy == 1)
                     {
+                        OrderedMSIPCLogs = MSIPCModifiedTime.OrderBy(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
+                    }
+                    else if (Rule.LogFileOrderBy == 2)
+                    {
+                        OrderedMSIPCLogs = MSIPCModifiedTime.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
+                    }
+
+                    foreach (KeyValuePair<string, string> FileInfo in OrderedMSIPCLogs)
+                    {
+
+                        string LogPath = FileInfo.Key;
 
                         //initialize flags
                         MachineActivationFlag = false;
@@ -109,8 +130,14 @@ namespace SmallTool_MSIPC
 
                         //open file
                         string[] RawContent = File.ReadAllLines(LogPath).ToArray();
+                        string ModifiedTime = FileInfo.Value;
                         string LogFileName = LogPath.Split('\\')[^1];
+                        
                         Console.WriteLine("\n\n++++++++++  " + LogFileName + "  ++++++++++");
+                        if (ModifiedTime != null)
+                        {
+                            Console.WriteLine("The Log was generated at " + ModifiedTime);
+                        }
 
                         //initially parse log
                         List<string[]> ParsedContent = ParseMSIPCLog(RawContent);
@@ -276,7 +303,7 @@ namespace SmallTool_MSIPC
         private void LogBasicAnalyse(List<string[]> content, List<string> CodeList, string FileName)
         {
             //get all HTTP request info
-            if (FindStartWithInParsedLog(content, "* MSIPC Version")) { BasicInfo.MSIPCVersion = content.Find(x => x[1].StartsWith("* MSIPC Version:"))[1].Split(':')[1].Trim(); }
+            if (FindStartWithInParsedLog(content, "* MSIPC Version") || FindStartWithInParsedLog(content, "* Version")) { BasicInfo.MSIPCVersion = content.Find(x => x[1].StartsWith("* MSIPC Version:") || x[1].StartsWith("* Version"))[1].Split(':')[1].Trim(); }
             if (FindStartWithInParsedLog(content, "* AppName")) { BasicInfo.AppName = content.Find(x => x[1].StartsWith("* AppName"))[1].Split(':')[1].Trim(); }
             if (FindStartWithInParsedLog(content, "* AppVersion")) { BasicInfo.AppVersion = content.Find(x => x[1].StartsWith("* AppVersion"))[1].Split(':')[1].Trim(); }
             if (FindStartWithInParsedLog(content, "        -->dwType")) { BasicInfo.AuthType = content.Find(x => x[1].StartsWith("        -->dwType"))[1].Split(':')[1].Trim(); }
@@ -332,6 +359,15 @@ namespace SmallTool_MSIPC
                 Console.WriteLine("\n==========MSIPC Traces: " + FileName + "==========");
                 //display basic info
                 Console.WriteLine(Handler.Serialize(BasicInfo) + "\n");
+
+                //msipc version check
+                if (BasicInfo.MSIPCVersion.Length > 0)
+                {
+                    if (Int32.Parse(BasicInfo.MSIPCVersion.Split('.')[2]) < 624)
+                    {
+                        Console.WriteLine("The MSIPC veresion is too low. Go to " + @"https://support.microsoft.com/en-us/topic/april-4-2017-update-for-office-2016-kb3178666-5ac73019-b9ea-a289-0189-dc61e8ceaa12"+" to upgrade");
+                    }
+                }
 
                 if (BasicInfo.AppName != null)
                 {

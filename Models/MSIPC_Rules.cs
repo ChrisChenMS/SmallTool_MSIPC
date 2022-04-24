@@ -34,6 +34,11 @@ namespace SmallTool_MSIPC.Models
 
         public CertRule CertRules { get; set; }
 
+        //1 modified time order
+        //2 modified time desc order
+        //other default order
+        public int LogFileOrderBy { get; set; }
+
         public void Initialize()
         {
             if (LogAnalyse)
