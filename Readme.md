@@ -4,9 +4,6 @@ This repository is for a tool to analyze AIP/RMS related logs. It helps with the
 
 For RMS theory we recommend visiting our official document: [How does Azure RMS work? Under the hood](https://docs.microsoft.com/en-us/azure/information-protection/how-does-it-work).
 
-## Change Log
-[Change Log](https://github.com/ChrisChenMS/SmallTool_MSIPC/blob/master/ChangeLog.md)
-
 ## Getting started
 Run the tool by double click **SmallTool.exe**. Input the log file path and we could get the analysis report.
 
@@ -21,7 +18,8 @@ This tool uses **rules.json** file to define the requirements:
    "ResponseCodeList":[
    "200","401"
    ],
-   
+    
+   "LogFileOrderBy":2,
    "CertAnalyse":false,
    "CertRules":{
       "RAC":[
@@ -44,6 +42,12 @@ This tool uses **rules.json** file to define the requirements:
    }
 }
 ```
+
+ -  LogFileOrderBy：
+
+   1: Time order
+
+   2: Time desc order
 
  - LogOnly:
 
@@ -93,7 +97,9 @@ For more information about RMS Licenses and Certificates: [Licenses and Certific
 
 From Log files, we could get the request URLs sending from client and response code getting from server. It helps us quickly narrow down the issue. (  access deny with multi-accounts; server issue in AD RMS scenario, etc.)
 
-![request](./Image/request.png)
+The log generation time will show at the top and we could **sort all log files by time/time desc** in rule settings.
+
+![request](./Image/log.png)
 
 ### Bootstrap analysis
 
@@ -122,6 +128,8 @@ From PL, we could determine the owner of this file and which URL will be visitin
 We show the checking process and how we get EUL in decryption report. 
 
 ![decryption](./Image/decryption.png)
+
+
 
 ## Contributing
 
