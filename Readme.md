@@ -4,6 +4,9 @@ This repository is for a tool to analyze AIP/RMS related logs. It helps with the
 
 For RMS theory we recommend visiting our official document: [How does Azure RMS work? Under the hood](https://docs.microsoft.com/en-us/azure/information-protection/how-does-it-work).
 
+## Change Log
+[Change Log](https://github.com/ChrisChenMS/SmallTool_MSIPC/blob/master/ChangeLog.md)
+
 ## Getting started
 Run the tool by double click **SmallTool.exe**. Input the log file path and we could get the analysis report.
 
