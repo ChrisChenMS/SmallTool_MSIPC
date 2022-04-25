@@ -63,6 +63,8 @@ This tool uses **rules.json** file to define the requirements:
    1: Time order
 
    2: Time desc order
+   
+   Others: default order
 
  - CertAnalyse:
 
