@@ -97,22 +97,37 @@ namespace SmallTool_MSIPC
                 if (MSIPCLogs.Length > 0) 
                 {
                     //get file modified time and sort
-                    Dictionary<string, string> MSIPCModifiedTime = new Dictionary<string, string>();
+                    Dictionary<string, string> MSIPCRecordedTime = new Dictionary<string, string>();
+                    string RecordTime = "";
                     foreach (string path in MSIPCLogs)
-                    { 
-                        DateTime ModifiedTime = File.GetLastWriteTime(path);
-                        MSIPCModifiedTime.Add(path, ModifiedTime.ToString());
+                    {
+                        if (new FileInfo(path).Length > 0)
+                        {
+                            string RecordTimeLine = File.ReadLines(path).First();
+                            try
+                            {
+                                if (RecordTimeLine.Count(f => f == ':') >= 6)
+                                {
+                                    RecordTime = RecordTimeLine.Split(":")[3].ToString() + RecordTimeLine.Split(":")[4].ToString() + RecordTimeLine.Split(":")[5].ToString();
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e);
+                            }
+                            MSIPCRecordedTime.Add(path, RecordTime);
+                        }
 
                     }
-                    Dictionary<string, string> OrderedMSIPCLogs = MSIPCModifiedTime;
+                    Dictionary<string, string> OrderedMSIPCLogs = MSIPCRecordedTime;
 
                     if (Rule.LogFileOrderBy == 1)
                     {
-                        OrderedMSIPCLogs = MSIPCModifiedTime.OrderBy(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
+                        OrderedMSIPCLogs = MSIPCRecordedTime.OrderBy(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
                     }
                     else if (Rule.LogFileOrderBy == 2)
                     {
-                        OrderedMSIPCLogs = MSIPCModifiedTime.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
+                        OrderedMSIPCLogs = MSIPCRecordedTime.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
                     }
 
                     foreach (KeyValuePair<string, string> FileInfo in OrderedMSIPCLogs)
