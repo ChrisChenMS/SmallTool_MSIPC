@@ -108,7 +108,7 @@ namespace SmallTool_MSIPC
                             {
                                 if (RecordTimeLine.Count(f => f == ':') >= 6)
                                 {
-                                    RecordTime = RecordTimeLine.Split(":")[3].ToString() + RecordTimeLine.Split(":")[4].ToString() + RecordTimeLine.Split(":")[5].ToString();
+                                    RecordTime = RecordTimeLine.Split(":")[3].ToString() + ":" + RecordTimeLine.Split(":")[4].ToString() + ":" + RecordTimeLine.Split(":")[5].ToString();
                                 }
                             }
                             catch (Exception e)
@@ -824,7 +824,7 @@ namespace SmallTool_MSIPC
                         else if (Handler.IsFiltered(Text, "MSIPC_DecryptionRACPrincipal"))
                         {
                             List<string> PrincipalIds = Handler.GetIds(Text);
-                            if (PrincipalIds.Count > 0)
+                            if (PrincipalIds.Count > 1)
                             {
                                 if (PrincipalIds[0] == PrincipalIds[1])
                                 {
@@ -836,9 +836,13 @@ namespace SmallTool_MSIPC
                                     table.AddRow(LineNo, "The Principal ID in EUL: " + PrincipalIds[1]);
                                 }
                             }
+                            else if (PrincipalIds.Count == 1)
+                            {
+                                table.AddRow(LineNo, "Looks like it is an external user");
+                            }
                             else
                             {
-                                table.AddRow(LineNo, "Somethine wrong here");
+                                table.AddRow(LineNo, "Something wrong here");
                             }
 
                         }
