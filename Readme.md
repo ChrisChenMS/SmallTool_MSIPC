@@ -7,6 +7,10 @@ For RMS theory we recommend visiting our official document: [How does Azure RMS 
 ## Change Log
 [Change Log](https://github.com/ChrisChenMS/SmallTool_MSIPC/blob/master/ChangeLog.md)
 
+## Home Page 
+
+[SmallTool](https://github.com/ChrisChenMS/SmallTool)
+
 ## Getting started
 Run the tool by double click **SmallTool.exe**. Input the log file path and we could get the analysis report.
 
@@ -46,9 +50,17 @@ This tool uses **rules.json** file to define the requirements:
 }
 ```
 
+ - LogFileOrderBy：
+
+   1: Time order
+
+   2: Time desc order
+
+   Others: default order
+
  - LogOnly:
 
-   true: This mode will focus on Logs folder only, no certificate analysis will be included in report. Input the folder path of Logs or a single *.ipclog file.
+   true: This mode will focus on Logs folder only, no certificate analysis will be included in report. Input the folder path of Logs.
 
    false: This mode will focus on the whole MSIPC folder. Input the MSIPC folder path.
 
@@ -57,14 +69,6 @@ This tool uses **rules.json** file to define the requirements:
    true: Use this tool to analyze logs in MSIPC folder.
 
    false: Exclude log analysis.
-   
- - LogFileOrderBy：
-
-   1: Time order
-
-   2: Time desc order
-   
-   Others: default order
 
  - CertAnalyse:
 
@@ -74,9 +78,9 @@ This tool uses **rules.json** file to define the requirements:
 
  - Mode:
 
-   1: Encryption
+   1: [Encryption](https://github.com/ChrisChenMS/SmallTool_MSIPC#file-encrypt-info)
 
-   2: Decryption
+   2: [Decryption](https://github.com/ChrisChenMS/SmallTool_MSIPC#file-decrypt-info)
 
    3: Both encryption and decryption analysis
    
