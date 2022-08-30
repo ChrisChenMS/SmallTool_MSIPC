@@ -44,7 +44,7 @@ namespace SmallTool_MSIPC
             if (BaseLocation.Length < 1)
             {
                 result.Flag = false;
-                result.ErrMessage = "Not a valid MSIPC or MSIPC log path";
+                result.ErrMessage = "Not a valid MSIPC folder path or MSIPC log folder path";
                 return result;
             }
 
